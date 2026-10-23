@@ -216,6 +216,8 @@ describe("tile", () => {
     // no meter at all: the tile is text only.
     expect(container.querySelector(".meter")).toBeNull();
     expect(container.querySelector("span[style*='width']")).toBeNull();
+    // Colour cue: a dot carrying the verdict class.
+    expect(container.querySelector(".dot").classList).toContain("ok");
   });
 
   it("reports how far back a restore can go, not the snapshot count", () => {
@@ -276,7 +278,7 @@ describe("tile", () => {
       data: { status: null, contents: null, recovery: null },
     });
     expect(screen.getByText("State unknown")).toBeInTheDocument();
-    expect(container.textContent).toMatch(/status unavailable/);
+    expect(container.querySelector(".dot").classList).toContain("unknown");
     expect(container.textContent).toMatch(/recovery window unknown/);
   });
 });

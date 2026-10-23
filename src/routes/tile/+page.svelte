@@ -76,6 +76,32 @@
     .line strong {
       font-size: 15px;
     }
+    /* The verdict's colour cue. A dot rather than a bar: it survives a 12px
+       font and reads at a glance from across the room. */
+    .dot {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      margin-right: 7px;
+      background: var(--unknown);
+      vertical-align: 1px;
+    }
+    .dot.ok {
+      background: var(--ok);
+      box-shadow: 0 0 6px color-mix(in srgb, var(--ok) 55%, transparent);
+    }
+    .dot.stale {
+      background: var(--stale);
+      box-shadow: 0 0 6px color-mix(in srgb, var(--stale) 55%, transparent);
+    }
+    .dot.suspended {
+      background: var(--suspended);
+      box-shadow: 0 0 6px color-mix(in srgb, var(--suspended) 55%, transparent);
+    }
+    .dot.unknown {
+      background: var(--unknown);
+    }
     .line .at {
       color: var(--muted);
       font-size: 13px;
@@ -104,14 +130,17 @@
 <div class="tile" data-verdict={status?.verdict ?? "unknown"}>
   {#if !status}
     <div class="line">
-      <strong>State unknown</strong>
+      <strong><span class="dot unknown"></span>State unknown</strong>
       <span class="at">backup-dash</span>
     </div>
     <div class="meta"><span>status unavailable</span></div>
     <div class="meta"><span>recovery window unknown</span></div>
   {:else}
     <div class="line">
-      <strong>{TEXT[status.verdict] ?? status.verdict}</strong>
+      <strong>
+        <span class="dot {status.verdict}"></span>{TEXT[status.verdict] ??
+          status.verdict}
+      </strong>
       <span class="at">
         {status.verdict === "unknown" ? "no state" : (lastSuccess ?? "—")}
       </span>
