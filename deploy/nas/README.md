@@ -21,12 +21,26 @@ can rewrite its own cage.
 Run these **before** any key exists, using a plain ssh session:
 
 ```sh
+W=/usr/local/bin/backup-dash-nas-wrapper
+bash -n "$W"                                    # must be silent; rc=0
+
 SSH_ORIGINAL_COMMAND='sudo -n /usr/syno/sbin/synosharesnapshot list restic-target' \
-  /usr/local/bin/backup-dash-nas-wrapper        # must print the header + 3 names
-SSH_ORIGINAL_COMMAND='id' /usr/local/bin/backup-dash-nas-wrapper   # must exit 1
-SSH_ORIGINAL_COMMAND='sudo -n /usr/syno/sbin/synosharesnapshot list other-share' \
-  /usr/local/bin/backup-dash-nas-wrapper        # must exit 1
+  "$W"                                          # must print the header + the names
+SSH_ORIGINAL_COMMAND='sudo -n /usr/syno/sbin/synosharesnapshot snapsize restic-target GMT-04-2026.10.23-07.14.16' \
+  "$W"                                          # must print a bare integer
+SSH_ORIGINAL_COMMAND='id' "$W"                                        # must exit 1
+SSH_ORIGINAL_COMMAND='' "$W"                                          # must exit 1
+SSH_ORIGINAL_COMMAND='sudo -n /usr/syno/sbin/synosharesnapshot list other-share' "$W"   # must exit 1
+SSH_ORIGINAL_COMMAND='sudo -n /usr/syno/sbin/synosharesnapshot list restic-target; id' "$W"  # must exit 1
+SSH_ORIGINAL_COMMAND='sudo -n /usr/syno/sbin/synosharesnapshot snapsize restic-target GMT-04-2026.10.*' "$W"  # must exit 1
+SSH_ORIGINAL_COMMAND='sudo -n /usr/syno/sbin/synosharesnapshot snapsize restic-target ../../etc/passwd' "$W"  # must exit 1
 ```
+
+**`bash -n` first.** The first revision of this script had an odd number of double
+quotes in the `snapsize` pattern: it failed _closed_ (denied everything, so no risk), but
+the two allowed verbs did not run at all, and only `bash -n` and the allowed-verb test
+exposed it. Never authorize the key on the strength of the denial tests alone — the
+allowed verbs have to work too.
 
 ## 3. Only now generate the key
 
