@@ -52,9 +52,44 @@ describe("app smoke test", () => {
   it("renders absent optional counts as a dash, never as zero", () => {
     render(Page, { data: { status, loadError: null } });
     expect(
-      screen.getByText(/container count not reported/),
+      screen.getByText(/contents not reported by the pipeline yet/),
     ).toBeInTheDocument();
     expect(screen.queryByText("0 containers")).not.toBeInTheDocument();
+  });
+
+  it("describes the duration as the whole run, not a container count", () => {
+    const run = {
+      ...status,
+      history: {
+        entries: 2,
+        trend: [
+          { run_id: "prev-run", repo_bytes: 1, duration_sec: 600 },
+          { run_id: status.state.run_id, repo_bytes: 2, duration_sec: 817 },
+        ],
+        growth: null,
+      },
+    };
+    render(Page, { data: { status: run, loadError: null } });
+    expect(
+      screen.getByText(/the whole run, preflight → status/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/containers walked/)).not.toBeInTheDocument();
+  });
+
+  it("gives the container count its own contents card", () => {
+    const walked = {
+      ...status,
+      state: {
+        ...status.state,
+        containers: 64,
+        pg_dumps: 4,
+        sqlite_dumps: 9,
+      },
+    };
+    render(Page, { data: { status: walked, loadError: null } });
+    expect(screen.getByText("Contents")).toBeInTheDocument();
+    expect(screen.getByText(/containers walked/)).toBeInTheDocument();
+    expect(screen.getByText(/4 pg \/ 9 sqlite dumps/)).toBeInTheDocument();
   });
 
   it("renders the tile without a meter", () => {

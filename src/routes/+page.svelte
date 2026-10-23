@@ -16,6 +16,18 @@
   }
 
   const trend = $derived(status?.history?.trend ?? []);
+
+  // The previous run's total duration, so the Duration card can say whether
+  // this one was quick or slow. Excludes the current run by id, because the
+  // newest history point is usually this very run.
+  const prevDuration = $derived.by(() => {
+    const s = status?.state;
+    if (!Number.isFinite(s?.duration_sec)) return null;
+    const earlier = trend.filter(
+      (p) => Number.isFinite(p.duration_sec) && p.run_id !== s.run_id,
+    );
+    return earlier.length ? earlier.at(-1).duration_sec : null;
+  });
   const points = $derived.by(() => {
     const values = trend.filter((p) => Number.isFinite(p.repo_bytes));
     if (values.length < 2) return [];
@@ -104,10 +116,32 @@
           : "—"}
       </div>
       <div class="foot">
+        <span>the whole run, preflight → status</span
+        >{#if prevDuration !== null}<span>
+            · previous {Math.round(prevDuration / 60)}m</span
+          >{/if}
+      </div>
+    </div>
+    <div class="card">
+      <h2>Contents</h2>
+      <div class="value">
+        {Number.isFinite(status.state.containers)
+          ? num(status.state.containers)
+          : "—"}
+      </div>
+      <div class="foot">
         {#if Number.isFinite(status.state.containers)}
-          {num(status.state.containers)} containers
+          <span>containers walked</span>
+          {#if Number.isFinite(status.state.pg_dumps) || Number.isFinite(status.state.sqlite_dumps)}
+            <span>
+              · {num(status.state.pg_dumps)} pg / {num(
+                status.state.sqlite_dumps,
+              )}
+              sqlite dumps</span
+            >
+          {/if}
         {:else}
-          container count not reported by the pipeline yet
+          <span>contents not reported by the pipeline yet</span>
         {/if}
       </div>
     </div>
