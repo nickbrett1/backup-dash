@@ -57,10 +57,11 @@ describe("app smoke test", () => {
     expect(screen.queryByText("0 containers")).not.toBeInTheDocument();
   });
 
-  it("renders the tile with one status line and one meter", () => {
+  it("renders the tile without a meter", () => {
     const { container } = render(Tile, { data: { status } });
     expect(screen.getByText("Backed up")).toBeInTheDocument();
-    expect(container.querySelectorAll(".meter")).toHaveLength(1);
+    expect(screen.getByText(/last 46m ago/)).toBeInTheDocument();
+    expect(container.querySelector(".meter")).toBeNull();
   });
 
   it("health endpoint returns JSON, which Homepage's customapi widget can parse", async () => {

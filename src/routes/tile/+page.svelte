@@ -5,7 +5,6 @@
   let { data } = $props();
   const status = $derived(data.status);
   const contents = $derived(data.contents);
-  const graceMinutes = $derived(data.graceMinutes ?? 180);
 
   const TEXT = {
     ok: "Backed up",
@@ -15,7 +14,7 @@
   };
 
   // Absolute time of the last successful run, in the dashboard's own zone
-  // (TZ). The relative age is on the first line; this is the exact instant.
+  // (TZ). It sits opposite the verdict; the relative age leads the line below.
   const lastSuccess = $derived(
     status?.state?.last_success
       ? formatInZoneCompact(new Date(status.state.last_success), data.timeZone)
@@ -39,17 +38,6 @@
       { n: groups.sqlite?.length ?? 0, label: "sqlite" },
     ].filter((g) => g.n > 0);
     return parts.length > 0 ? parts : null;
-  });
-
-  // One meter: how much of the expected window has been used. At 100% the
-  // next backup should already have run. The grace comes from the same
-  // GRACE_MINUTES the verdict uses, so the bar and the verdict cannot drift.
-  const usedFraction = $derived.by(() => {
-    if (!status?.state?.last_success_epoch || !status?.next_run?.in_seconds)
-      return null;
-    const windowSeconds = 24 * 3600 + graceMinutes * 60;
-    const frac = status.age_seconds / windowSeconds;
-    return Math.min(1, Math.max(0, frac));
   });
 </script>
 
@@ -76,19 +64,11 @@
     .line strong {
       font-size: 15px;
     }
-    .line .age {
+    .line .at {
       color: var(--muted);
       font-size: 13px;
       white-space: nowrap;
-    }
-    .meter > span.stale {
-      background: var(--stale);
-    }
-    .meter > span.unknown {
-      background: var(--unknown);
-    }
-    .meter > span.suspended {
-      background: var(--suspended);
+      font-variant-numeric: tabular-nums;
     }
     .meta {
       color: var(--muted);
@@ -97,9 +77,6 @@
       display: flex;
       flex-wrap: wrap;
       gap: 0 5px;
-    }
-    .meta .at {
-      color: var(--text);
     }
     .meta .sep {
       opacity: 0.5;
@@ -111,42 +88,29 @@
   {#if !status}
     <div class="line">
       <strong>State unknown</strong>
-      <span class="age">backup-dash</span>
+      <span class="at">backup-dash</span>
     </div>
-    <div class="meter"><span class="unknown" style="width:100%"></span></div>
+    <div class="meta"><span>status unavailable</span></div>
   {:else}
     <div class="line">
       <strong>{TEXT[status.verdict] ?? status.verdict}</strong>
-      <span class="age">
-        {status.verdict === "unknown"
-          ? "no state"
-          : `last ${status.age ?? "—"} ago`}
+      <span class="at">
+        {status.verdict === "unknown" ? "no state" : (lastSuccess ?? "—")}
       </span>
-    </div>
-    <div class="meter">
-      <span
-        class={status.verdict}
-        style={`width:${usedFraction === null ? 100 : (usedFraction * 100).toFixed(1)}%`}
-      ></span>
     </div>
     <div class="meta">
       {#if status.verdict === "unknown"}
         <span>state file unreadable</span>
       {:else}
-        {#if lastSuccess}
-          <span class="at">
-            {status.verdict === "ok" ? "taken" : "last success"}
-            {lastSuccess}
-          </span>
+        {#if status.age}
+          <span>last {status.age} ago</span>
         {:else}
-          <span class="at">no successful run recorded</span>
+          <span>no successful run recorded</span>
         {/if}
 
         {#if snapshots !== null}
           <span class="sep">·</span>
-          <span>
-            {snapshots} snapshot{snapshots === 1 ? "" : "s"}
-          </span>
+          <span>{snapshots} snapshot{snapshots === 1 ? "" : "s"}</span>
         {/if}
 
         {#if repoBytes}

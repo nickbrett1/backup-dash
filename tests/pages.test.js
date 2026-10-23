@@ -196,26 +196,20 @@ describe("tile", () => {
   };
 
   it("names the last successful run in absolute and relative time", () => {
-    render(Tile, {
-      data: {
-        status: tileStatus,
-        contents,
-        timeZone: "UTC",
-        graceMinutes: 180,
-      },
+    const { container } = render(Tile, {
+      data: { status: tileStatus, contents, timeZone: "UTC" },
     });
-    expect(screen.getByText(/taken Oct 23, 11:14/)).toBeInTheDocument();
+    // absolute, beside the verdict; relative, on the line below.
+    expect(screen.getByText("Oct 23, 11:14")).toBeInTheDocument();
     expect(screen.getByText(/last 46m ago/)).toBeInTheDocument();
+    // no meter at all: the tile is text only.
+    expect(container.querySelector(".meter")).toBeNull();
+    expect(container.querySelector("span[style*='width']")).toBeNull();
   });
 
-  it("summarises what is backed up, and omits it when contents are unavailable", () => {
+  it("summarises the backup, and omits the staged line when contents are unavailable", () => {
     const { unmount } = render(Tile, {
-      data: {
-        status: tileStatus,
-        contents,
-        timeZone: "UTC",
-        graceMinutes: 180,
-      },
+      data: { status: tileStatus, contents, timeZone: "UTC" },
     });
     expect(screen.getByText(/12 snapshots/)).toBeInTheDocument();
     expect(screen.getByText(/23 GB in repo/)).toBeInTheDocument();
@@ -228,34 +222,18 @@ describe("tile", () => {
       data: { status: tileStatus, contents: null, timeZone: "UTC" },
     });
     expect(container.textContent).not.toMatch(/staged:/);
-    expect(container.querySelectorAll(".meter")).toHaveLength(1);
+    expect(container.textContent).toMatch(/12 snapshots/);
   });
 
-  it("takes the meter's grace from GRACE_MINUTES, not a hardcoded 180", () => {
-    // 25h since the last success. With the default 180m grace the nightly
-    // window is 27h, so the bar is not yet full; with the grace removed the
-    // same age overruns the 24h window and the bar clamps at 100%.
-    const late = { ...tileStatus, age_seconds: 25 * 3600 };
-
-    const withGrace = render(Tile, {
+  it("shows the repo facts even with no contents walk", () => {
+    render(Tile, {
       data: {
-        status: late,
+        status: { ...tileStatus, state: { ...tileStatus.state, snapshots: 1 } },
         contents: null,
         timeZone: "UTC",
-        graceMinutes: 180,
       },
     });
-    expect(
-      withGrace.container.querySelector(".meter > span").getAttribute("style"),
-    ).toContain("92.6%");
-    withGrace.unmount();
-
-    const noGrace = render(Tile, {
-      data: { status: late, contents: null, timeZone: "UTC", graceMinutes: 0 },
-    });
-    expect(
-      noGrace.container.querySelector(".meter > span").getAttribute("style"),
-    ).toMatch(/width:\s*100%/);
+    expect(screen.getByText(/1 snapshot$/)).toBeInTheDocument();
   });
 
   it("renders a plain unknown tile with no status", () => {
@@ -263,6 +241,6 @@ describe("tile", () => {
       data: { status: null, contents: null },
     });
     expect(screen.getByText("State unknown")).toBeInTheDocument();
-    expect(container.querySelectorAll(".meter")).toHaveLength(1);
+    expect(container.textContent).toMatch(/status unavailable/);
   });
 });

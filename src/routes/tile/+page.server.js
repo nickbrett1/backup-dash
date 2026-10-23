@@ -16,10 +16,5 @@ export async function load({ setHeaders }) {
     getContents().catch(() => null),
   ]);
 
-  return {
-    status,
-    contents,
-    timeZone: cfg.timeZone,
-    graceMinutes: cfg.graceMinutes,
-  };
+  return { status, contents, timeZone: cfg.timeZone };
 }
