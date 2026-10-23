@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/svelte";
 import Contents from "../src/routes/contents/+page.svelte";
 import Snapshots from "../src/routes/snapshots/+page.svelte";
 import Repo from "../src/routes/repo/+page.svelte";
+import Tile from "../src/routes/tile/+page.svelte";
 
 const status = {
   state: {
@@ -165,5 +166,102 @@ describe("repo page", () => {
     });
     expect(screen.getByText("degraded")).toBeInTheDocument();
     expect(screen.getByText(/restic failed/)).toBeInTheDocument();
+  });
+});
+
+describe("tile", () => {
+  const tileStatus = {
+    verdict: "ok",
+    age: "46m",
+    age_seconds: 2760,
+    state: {
+      ok: true,
+      last_success: "2026-10-23T11:14:00Z",
+      last_success_epoch: 1792754040,
+      snapshots: 12,
+      repo_bytes: 24696070144,
+    },
+    next_run: { in_seconds: 70200, display: "Oct 24, 3:30 AM" },
+  };
+  const contents = {
+    degraded: false,
+    asOf: "2026-10-23T12:00:00.000Z",
+    error: null,
+    value: {
+      root: "/backup",
+      totalBytes: 2 * 1024 ** 3,
+      files: [{}],
+      groups: { pg: [{}], sqlite: [{}], config: [{}, {}], other: [] },
+    },
+  };
+
+  it("names the last successful run in absolute and relative time", () => {
+    render(Tile, {
+      data: {
+        status: tileStatus,
+        contents,
+        timeZone: "UTC",
+        graceMinutes: 180,
+      },
+    });
+    expect(screen.getByText(/taken Oct 23, 11:14/)).toBeInTheDocument();
+    expect(screen.getByText(/last 46m ago/)).toBeInTheDocument();
+  });
+
+  it("summarises what is backed up, and omits it when contents are unavailable", () => {
+    const { unmount } = render(Tile, {
+      data: {
+        status: tileStatus,
+        contents,
+        timeZone: "UTC",
+        graceMinutes: 180,
+      },
+    });
+    expect(screen.getByText(/1 pg/)).toBeInTheDocument();
+    expect(screen.getByText(/1 sqlite/)).toBeInTheDocument();
+    expect(screen.getByText(/2 config/)).toBeInTheDocument();
+    expect(screen.getByText(/2 GB backed up/)).toBeInTheDocument();
+    unmount();
+
+    const { container } = render(Tile, {
+      data: { status: tileStatus, contents: null, timeZone: "UTC" },
+    });
+    expect(container.textContent).not.toMatch(/backed up/);
+    expect(container.querySelectorAll(".meter")).toHaveLength(1);
+  });
+
+  it("takes the meter's grace from GRACE_MINUTES, not a hardcoded 180", () => {
+    // 25h since the last success. With the default 180m grace the nightly
+    // window is 27h, so the bar is not yet full; with the grace removed the
+    // same age overruns the 24h window and the bar clamps at 100%.
+    const late = { ...tileStatus, age_seconds: 25 * 3600 };
+
+    const withGrace = render(Tile, {
+      data: {
+        status: late,
+        contents: null,
+        timeZone: "UTC",
+        graceMinutes: 180,
+      },
+    });
+    expect(
+      withGrace.container.querySelector(".meter > span").getAttribute("style"),
+    ).toContain("92.6%");
+    withGrace.unmount();
+
+    const noGrace = render(Tile, {
+      data: { status: late, contents: null, timeZone: "UTC", graceMinutes: 0 },
+    });
+    expect(
+      noGrace.container.querySelector(".meter > span").getAttribute("style"),
+    ).toMatch(/width:\s*100%/);
+  });
+
+  it("renders a plain unknown tile with no status", () => {
+    const { container } = render(Tile, {
+      data: { status: null, contents: null },
+    });
+    expect(screen.getByText("State unknown")).toBeInTheDocument();
+    expect(container.querySelectorAll(".meter")).toHaveLength(1);
   });
 });

@@ -178,6 +178,24 @@ export function formatInZone(date, timeZone) {
   return DISPLAY(timeZone).format(date);
 }
 
+// Compact form for the Homepage tile, where the full "Oct 23, 2026, 7:14 AM"
+// does not fit in a ~300px iframe. Same zone, no year: the tile is read for
+// recency, and the year only matters on the full pages.
+const COMPACT = (timeZone) =>
+  new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+
+export function formatInZoneCompact(date, timeZone) {
+  if (!date) return null;
+  return COMPACT(timeZone).format(date);
+}
+
 export function formatAge(seconds) {
   if (seconds === null || seconds === undefined || !Number.isFinite(seconds))
     return null;

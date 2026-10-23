@@ -71,9 +71,13 @@ describe("route loads never 500", () => {
     expect(data.loadError).toBeNull();
   });
 
-  it("tile returns the same cheap status", async () => {
+  it("tile returns the cheap status plus the contents summary", async () => {
     const data = await tileLoad(headers);
     expect(data.status.state.snapshots).toBe(12);
+    expect(data.contents.value.groups.pg).toHaveLength(1);
+    expect(data.contents.value.groups.config).toHaveLength(1);
+    // The tile renders the age bar with the same grace the verdict uses.
+    expect(data.graceMinutes).toBe(180);
   });
 
   it("contents groups the tree and reports an unreadable staging dir quietly", async () => {
