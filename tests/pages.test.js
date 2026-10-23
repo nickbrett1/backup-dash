@@ -22,6 +22,11 @@ describe("contents page", () => {
       error: null,
       value: {
         root: "/backup",
+        containers: {
+          dir: "staging/config",
+          source: "containers.txt",
+          names: ["litellm", "miniflux"],
+        },
         totalBytes: 2048,
         files: [
           {
@@ -48,10 +53,9 @@ describe("contents page", () => {
     };
     render(Contents, { data: { status, contents } });
     expect(screen.getByText("pg/app.dump")).toBeInTheDocument();
-    expect(
-      screen.getByText("not reported by the pipeline yet"),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/names listed below/)).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    expect(screen.getByText("litellm")).toBeInTheDocument();
   });
 
   it("says degraded rather than showing a blank panel", () => {

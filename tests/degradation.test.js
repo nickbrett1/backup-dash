@@ -1,9 +1,9 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCache } from "../src/lib/cache.js";
-import { readContents } from "../src/lib/contents.js";
+import { readContents, readContainerNames } from "../src/lib/contents.js";
 import { createStatusReader } from "../src/lib/status.js";
 
 let dir;
@@ -150,5 +150,59 @@ describe("contents degrades", () => {
     const contents = readContents(join(dir, "absent"));
     expect(contents.files).toEqual([]);
     expect(contents.totalBytes).toBe(0);
+  });
+});
+
+describe("container names", () => {
+  it("reads the pipeline's own containers.txt manifest", () => {
+    mkdirSync(join(dir, "staging", "config"), { recursive: true });
+    writeFileSync(
+      join(dir, "staging", "config", "containers.txt"),
+      "litellm\nminiflux\n",
+    );
+    // The manifest counts 2 while the directory holds 3 entries; the manifest
+    // wins, so the site cannot report a count the pipeline never walked.
+    writeFileSync(join(dir, "staging", "config", "litellm.json"), "{}");
+    writeFileSync(join(dir, "staging", "config", "miniflux.json"), "{}");
+
+    const found = readContainerNames(dir);
+    expect(found.dir).toBe("staging/config");
+    expect(found.source).toBe("containers.txt");
+    expect(found.names).toEqual(["litellm", "miniflux"]);
+  });
+
+  it("falls back to the JSON filenames when the manifest is missing", () => {
+    mkdirSync(join(dir, "staging", "config"), { recursive: true });
+    writeFileSync(join(dir, "staging", "config", "paperless.json"), "{}");
+    writeFileSync(join(dir, "staging", "config", "immich.json"), "{}");
+    writeFileSync(join(dir, "staging", "config", ".keep"), "");
+
+    const found = readContainerNames(dir);
+    expect(found.source).toBe("filenames");
+    expect(found.names).toEqual(["immich", "paperless"]);
+  });
+
+  it("accepts a per-container directory layout too", () => {
+    mkdirSync(join(dir, "config", "paperless"), { recursive: true });
+    expect(readContainerNames(dir)).toEqual({
+      dir: "config",
+      source: "filenames",
+      names: ["paperless"],
+    });
+  });
+
+  it("prefers staging/config over the older config/ layout", () => {
+    mkdirSync(join(dir, "staging", "config"), { recursive: true });
+    writeFileSync(join(dir, "staging", "config", "containers.txt"), "new\n");
+    mkdirSync(join(dir, "config", "old"), { recursive: true });
+    expect(readContainerNames(dir).names).toEqual(["new"]);
+  });
+
+  it("reports no directory rather than inventing names", () => {
+    expect(readContainerNames(join(dir, "absent"))).toEqual({
+      dir: null,
+      source: null,
+      names: [],
+    });
   });
 });

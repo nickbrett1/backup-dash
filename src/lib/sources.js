@@ -6,7 +6,7 @@
 
 import { createCache } from "./cache.js";
 import { config } from "./config.js";
-import { readContents, groupContents } from "./contents.js";
+import { readContents, groupContents, readContainerNames } from "./contents.js";
 import { listNasSnapshots, snapshotSize } from "./nas.js";
 import { listSnapshots, repoStats, resticVersion } from "./restic.js";
 
@@ -99,8 +99,13 @@ export function getContents() {
       name: "contents",
       ttlMs: config().cacheTtlMs,
       loader: async () => {
-        const contents = readContents(config().backupDir);
-        return { ...contents, groups: groupContents(contents) };
+        const root = config().backupDir;
+        const contents = readContents(root);
+        return {
+          ...contents,
+          groups: groupContents(contents),
+          containers: readContainerNames(root),
+        };
       },
     });
   }

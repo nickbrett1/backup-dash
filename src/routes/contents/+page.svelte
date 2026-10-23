@@ -5,6 +5,17 @@
   const status = $derived(data.status);
   const contents = $derived(data.contents);
 
+  const named = $derived(
+    contents.value?.containers ?? { dir: null, source: null, names: [] },
+  );
+  const namedFrom = $derived.by(() => {
+    if (named.source === "containers.txt")
+      return `read from the pipeline's own ${named.dir}/containers.txt`;
+    if (named.source === "filenames")
+      return `taken from the filenames in ${named.dir} (that run wrote no manifest)`;
+    return null;
+  });
+
   const groups = [
     { key: "pg", label: "Postgres dumps" },
     { key: "sqlite", label: "SQLite dumps" },
@@ -33,9 +44,15 @@
         : "—"}
     </div>
     <div class="foot">
-      {Number.isFinite(status?.state?.containers)
-        ? "count reported by the pipeline"
-        : "not reported by the pipeline yet"}
+      {#if named.names.length}
+        names listed below{#if Number.isFinite(status?.state?.containers) && named.names.length !== status.state.containers}&#32;<span
+            class="degraded-tag">count differs</span
+          >{/if}
+      {:else if Number.isFinite(status?.state?.containers)}
+        count reported by the pipeline, no per-container directory on disk
+      {:else}
+        not reported by the pipeline yet
+      {/if}
     </div>
   </div>
   <div class="card">
@@ -67,6 +84,26 @@
       {/if}
     </div>
   </div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <h2>Container names</h2>
+  {#if named.names.length}
+    <p class="sub" style="margin-bottom:10px">
+      {named.names.length} containers, {namedFrom}.
+    </p>
+    <ul class="names">
+      {#each named.names as name (name)}
+        <li class="mono">{name}</li>
+      {/each}
+    </ul>
+  {:else}
+    <p class="empty">
+      No per-container directory under <code class="mono">staging/config</code>
+      or <code class="mono">config</code> — the config phase has not run here yet,
+      or the directory is unreadable.
+    </p>
+  {/if}
 </div>
 
 {#each groups as group (group.key)}

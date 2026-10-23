@@ -206,6 +206,24 @@ h2 {
   color: var(--muted);
 }
 
+/* Container names, one pill per name. Wrapping rather than a table: the names
+   are short and unordered, and a flex row reflows on a phone without a scroll. */
+.names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12.5px;
+}
+.names li {
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow-wrap: anywhere;
+}
+
 /* Degradation errors and paths inside cards are long single tokens too. */
 .card,
 .sub,
