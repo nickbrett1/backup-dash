@@ -217,16 +217,17 @@ describe("tile", () => {
         graceMinutes: 180,
       },
     });
+    expect(screen.getByText(/12 snapshots/)).toBeInTheDocument();
+    expect(screen.getByText(/23 GB in repo/)).toBeInTheDocument();
+    expect(screen.getByText(/staged:/)).toBeInTheDocument();
     expect(screen.getByText(/1 pg/)).toBeInTheDocument();
     expect(screen.getByText(/1 sqlite/)).toBeInTheDocument();
-    expect(screen.getByText(/2 config/)).toBeInTheDocument();
-    expect(screen.getByText(/2 GB backed up/)).toBeInTheDocument();
     unmount();
 
     const { container } = render(Tile, {
       data: { status: tileStatus, contents: null, timeZone: "UTC" },
     });
-    expect(container.textContent).not.toMatch(/backed up/);
+    expect(container.textContent).not.toMatch(/staged:/);
     expect(container.querySelectorAll(".meter")).toHaveLength(1);
   });
 

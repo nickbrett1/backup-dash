@@ -22,6 +22,25 @@
       : null,
   );
 
+  const snapshots = $derived(
+    Number.isFinite(status?.state?.snapshots) ? status.state.snapshots : null,
+  );
+  const repoBytes = $derived(formatBytes(status?.state?.repo_bytes));
+
+  // The dumps the pipeline stages under $BACKUP_DIR. Only pg/sqlite are
+  // counted here: the rest of that tree is restic's own config (exclude.txt,
+  // cache, ssh keys), which would read as content when it is not. Omitted
+  // entirely when the walk is unavailable or has nothing staged.
+  const dumps = $derived.by(() => {
+    const groups = contents?.value?.groups;
+    if (!groups) return null;
+    const parts = [
+      { n: groups.pg?.length ?? 0, label: "pg" },
+      { n: groups.sqlite?.length ?? 0, label: "sqlite" },
+    ].filter((g) => g.n > 0);
+    return parts.length > 0 ? parts : null;
+  });
+
   // One meter: how much of the expected window has been used. At 100% the
   // next backup should already have run. The grace comes from the same
   // GRACE_MINUTES the verdict uses, so the bar and the verdict cannot drift.
@@ -32,18 +51,6 @@
     const frac = status.age_seconds / windowSeconds;
     return Math.min(1, Math.max(0, frac));
   });
-
-  // What the last run actually carried, from the local backup dir.
-  const counts = $derived.by(() => {
-    const groups = contents?.value?.groups;
-    if (!groups) return null;
-    return [
-      { n: groups.pg?.length ?? 0, label: "pg" },
-      { n: groups.sqlite?.length ?? 0, label: "sqlite" },
-      { n: groups.config?.length ?? 0, label: "config" },
-    ].filter((g) => g.n > 0);
-  });
-  const totalBytes = $derived(formatBytes(contents?.value?.totalBytes));
 </script>
 
 <svelte:head>
@@ -89,7 +96,7 @@
       margin-top: 6px;
       display: flex;
       flex-wrap: wrap;
-      gap: 0 6px;
+      gap: 0 5px;
     }
     .meta .at {
       color: var(--text);
@@ -135,22 +142,27 @@
           <span class="at">no successful run recorded</span>
         {/if}
 
-        {#if counts}
+        {#if snapshots !== null}
           <span class="sep">·</span>
           <span>
-            {#each counts as group, i (group.label)}
-              {#if i > 0}<span class="sep">·</span>{/if}
-              {group.n}
-              {group.label}
-            {/each}
+            {snapshots} snapshot{snapshots === 1 ? "" : "s"}
           </span>
         {/if}
 
-        {#if totalBytes}
+        {#if repoBytes}
           <span class="sep">·</span>
-          <span>{totalBytes} backed up</span>
+          <span>{repoBytes} in repo</span>
         {/if}
       {/if}
     </div>
+    {#if status.verdict !== "unknown" && dumps}
+      <div class="meta">
+        <span>staged:</span>
+        {#each dumps as dump, i (dump.label)}
+          {#if i > 0}<span class="sep">·</span>{/if}
+          <span>{dump.n} {dump.label}</span>
+        {/each}
+      </div>
+    {/if}
   {/if}
 </div>
