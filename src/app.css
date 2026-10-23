@@ -206,10 +206,21 @@ h2 {
   color: var(--muted);
 }
 
+/* Degradation errors and paths inside cards are long single tokens too. */
+.card,
+.sub,
+.foot {
+  overflow-wrap: anywhere;
+}
+
 table {
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  /* Fixed layout so a single long token cannot dictate the column widths and
+     push the table — and the page — wider than a phone. */
+  table-layout: fixed;
 }
 
 th,
@@ -217,6 +228,18 @@ td {
   text-align: left;
   padding: 8px 10px;
   border-bottom: 1px solid var(--line);
+  /* File paths and NAS snapshot names have no spaces to break at, so without
+     this they overrun the cell and the page scrolls sideways on a phone.
+     `anywhere` lets even an unbroken basename wrap mid-word. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  vertical-align: top;
+}
+
+/* The first column carries the path / name, the rest are short numbers. */
+table th:first-child,
+table td:first-child {
+  width: 52%;
 }
 
 th {
@@ -236,6 +259,7 @@ th.num {
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .empty {
@@ -255,4 +279,20 @@ th.num {
   display: block;
   height: 100%;
   background: var(--ok);
+}
+
+/* Phones: tighter cells and a narrower first column, so five columns of a
+   restic snapshot row still fit without horizontal scrolling. */
+@media (max-width: 640px) {
+  table {
+    font-size: 12.5px;
+  }
+  th,
+  td {
+    padding: 6px 6px;
+  }
+  table th:first-child,
+  table td:first-child {
+    width: 42%;
+  }
 }
