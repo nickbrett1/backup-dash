@@ -47,15 +47,25 @@ function assertVerb(verb) {
   }
 }
 
-function sftpCommand(cfg) {
+/**
+ * restic's sftp backend builds `ssh <sftp.args> -s sftp user@host` itself, so the
+ * options go in `sftp.args` and restic supplies the host and subsystem. Using
+ * `sftp.command` instead requires spelling the whole ssh line out and gets the
+ * subsystem/host ordering wrong (verified against restic 0.18.1: `ssh ... -s sftp`
+ * with no host fails with "You must specify a subsystem to invoke").
+ *
+ * This is the same shape the 03:30 pipeline uses, so the two agree on port, key
+ * and host-key policy.
+ */
+function sftpArgs(cfg) {
   return [
-    "ssh",
+    `-p ${cfg.resticPort}`,
     `-i ${cfg.resticSshKey}`,
     "-o IdentitiesOnly=yes",
     "-o BatchMode=yes",
     "-o StrictHostKeyChecking=yes",
     `-o UserKnownHostsFile=${cfg.knownHosts}`,
-    "-s sftp",
+    "-o LogLevel=ERROR",
   ].join(" ");
 }
 
@@ -69,7 +79,7 @@ export function buildResticArgv(verb, args = [], cfg = config()) {
     cfg.resticRepo,
     "--no-lock",
     "-o",
-    `sftp.command=${sftpCommand(cfg)}`,
+    `sftp.args=${sftpArgs(cfg)}`,
     verb,
     ...args,
   ];
@@ -150,5 +160,10 @@ export async function repoStats() {
 }
 
 export async function resticVersion() {
-  return (await runRestic("VERSION", ["--json"])).trim();
+  const raw = (await runRestic("VERSION", ["--json"])).trim();
+  try {
+    return JSON.parse(raw).version ?? raw;
+  } catch {
+    return raw; // a stub or an older restic that ignores --json
+  }
 }

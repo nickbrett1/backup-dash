@@ -60,6 +60,21 @@ describe("restic argv invariant", () => {
     expect(argv.indexOf("--no-lock")).toBeLessThan(argv.indexOf("snapshots"));
   });
 
+  it("uses sftp.args (restic supplies the host and subsystem), with the NAS port", () => {
+    const argv = buildResticArgv(ResticVerb.SNAPSHOTS, ["--json"], {
+      ...cfg,
+      resticPort: "2222",
+    });
+    const opt = argv.find((a) => a.startsWith("sftp.args="));
+    expect(opt).toBeTruthy();
+    expect(opt).toContain("-p 2222");
+    expect(opt).toContain("-i /secrets/id_restic_ed25519");
+    expect(opt).toContain("StrictHostKeyChecking=yes");
+    // sftp.command requires spelling out the host and subsystem; the pipeline
+    // uses sftp.args and so do we.
+    expect(argv.some((a) => a.startsWith("sftp.command="))).toBe(false);
+  });
+
   it("never emits a mutating verb", () => {
     const argv = buildResticArgv(ResticVerb.STATS, ["--json"], cfg);
     for (const verb of MUTATING_VERBS) expect(argv).not.toContain(verb);

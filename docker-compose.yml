@@ -39,6 +39,7 @@ services:
       RESTIC_REPO: ${RESTIC_REPO:-sftp:restic@192.168.1.2:/restic-target/um790}
       RESTIC_PASSWORD: ${RESTIC_PASSWORD}
       RESTIC_SSH_KEY: ${RESTIC_SSH_KEY:-/secrets/id_restic_ed25519}
+      RESTIC_PORT: ${RESTIC_PORT:-2222}
       NAS_HOST: ${NAS_HOST:-192.168.1.2}
       NAS_PORT: ${NAS_PORT:-2222}
       NAS_SSH_KEY: ${NAS_SSH_KEY:-/secrets/id_nas_ed25519}

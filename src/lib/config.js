@@ -9,6 +9,8 @@ const DEFAULTS = {
 
   RESTIC_REPO: "sftp:restic@192.168.1.2:/restic-target/um790",
   RESTIC_SSH_KEY: "/secrets/id_restic_ed25519",
+  // The NAS sshd answers on 22 and 2222; the pipeline uses 2222.
+  RESTIC_PORT: "2222",
   // eslint-disable-next-line sonarjs/no-hardcoded-ip -- see RESTIC_REPO above
   NAS_HOST: "192.168.1.2",
   NAS_PORT: "2222",
@@ -46,6 +48,7 @@ export function config() {
     backupDir: read("BACKUP_DIR"),
     resticRepo: read("RESTIC_REPO"),
     resticSshKey: read("RESTIC_SSH_KEY"),
+    resticPort: read("RESTIC_PORT"),
     resticPassword: process.env.RESTIC_PASSWORD || "",
     nasHost: read("NAS_HOST"),
     nasPort: readInt("NAS_PORT"),
