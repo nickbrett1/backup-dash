@@ -46,7 +46,9 @@ else
 fi
 
 say "== data directory =="
-if [ -d /var/lib/backup-dash ]; then ok "/var/lib/backup-dash"; else bad "/var/lib/backup-dash missing"; fi
+# Compose mounts /srv/docker/backup-dash/data:/data (not /var/lib): /var/lib is
+# root-owned on ryzen and the deploying user has no NOPASSWD sudo.
+if [ -d /srv/docker/backup-dash/data ]; then ok "/srv/docker/backup-dash/data"; else bad "/srv/docker/backup-dash/data missing"; fi
 
 say "== suspend flag visibility =="
 # The container runs as root, so root-readability is what matters.

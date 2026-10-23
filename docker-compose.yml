@@ -13,6 +13,13 @@ services:
     container_name: backup-dash
     restart: unless-stopped
 
+    # Credentials come from a file, never from the invocation shell. Without
+    # this, `docker compose up -d` run in a shell where RESTIC_PASSWORD is not
+    # exported silently starts the container with an empty password (the
+    # environment block below would interpolate it to ""). See deploy/README.md.
+    env_file:
+      - /srv/.um790-backup/secrets/dashboard.env
+
     # Runs as root deliberately: /dagu/suspend on the host is drwxr-x--- root:root,
     # so a non-root UID cannot traverse it and would report "not suspended"
     # forever. The service holds no write path, and no-new-privileges blocks
@@ -28,7 +35,9 @@ services:
       - /srv/reader/docker/dagu/data/repo/dags/ryzen:/dagu/dags:ro
       - /srv/reader/docker/dagu/data/suspend:/dagu/suspend:ro
       - /srv/.um790-backup/secrets:/secrets:ro
-      - /var/lib/backup-dash:/data
+      # /var/lib is root-owned on ryzen and `nick` has no NOPASSWD sudo, so the
+      # writable history volume lives under /srv instead.
+      - /srv/docker/backup-dash/data:/data
     environment:
       # Set your environment variables here or in a NAS-side .env file
       # (genproj never commits secrets). See .env.example.
@@ -37,7 +46,9 @@ services:
       STATE_FILE: ${STATE_FILE:-/backup/state/last_success.json}
       BACKUP_DIR: ${BACKUP_DIR:-/backup}
       RESTIC_REPO: ${RESTIC_REPO:-sftp:restic@192.168.1.2:/restic-target/um790}
-      RESTIC_PASSWORD: ${RESTIC_PASSWORD}
+      # RESTIC_PASSWORD is supplied by env_file above. Do NOT add it here: an
+      # `environment:` entry takes precedence over env_file and would blank the
+      # password whenever the invoking shell had not exported it.
       RESTIC_SSH_KEY: ${RESTIC_SSH_KEY:-/secrets/id_restic_ed25519}
       RESTIC_PORT: ${RESTIC_PORT:-2222}
       NAS_HOST: ${NAS_HOST:-192.168.1.2}

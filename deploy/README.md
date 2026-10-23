@@ -170,8 +170,16 @@ all of them and refuses to pass while any is missing.
    `deploy/nas/README.md`. Passwordless sudo is live on the NAS, so an
    unconstrained key is root.
 
-3. **Data directory.** `install -d -m 755 /var/lib/backup-dash`. It holds
-   `history.jsonl` and is the only writable mount.
+3. **Data directory.** `install -d -m 755 /srv/docker/backup-dash/data`. It
+   holds `history.jsonl` and is the only writable mount. It lives under `/srv`
+   rather than `/var/lib` because `/var/lib` is root-owned on ryzen and the
+   deploying account has no NOPASSWD sudo.
+
+   The credentials are wired in with `env_file:` in `docker-compose.yml`, so
+   `docker compose up -d` never needs `RESTIC_PASSWORD` exported in the calling
+   shell. Do not move it back into the `environment:` block: an entry there
+   takes precedence over `env_file` and silently blanks the password when the
+   invoking shell has not exported it.
 
 4. **Homepage group.** The label is `homepage.group=Activity` in
    `docker-compose.yml` (not the generated `Services`). If you use the file
