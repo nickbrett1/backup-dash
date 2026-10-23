@@ -19,9 +19,9 @@
 <p class="sub">
   Names and sizes from <code class="mono"
     >{contents.value?.root ?? "/backup"}</code
-  >. Containers are a count from the state file: the name list lives in
-  <code class="mono">staging/</code> at <code class="mono">root:root 0700</code> and
-  is not readable from this container.
+  >, including <code class="mono">staging/</code> — the dumps the pipeline
+  collects before a run. The container runs as root, so the host's
+  <code class="mono">root:root 0700</code> on that directory does not hide it.
 </p>
 
 <div class="grid">

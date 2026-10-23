@@ -19,6 +19,8 @@ beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "bd-routes-"));
   mkdirSync(join(dir, "backup", "config"), { recursive: true });
   mkdirSync(join(dir, "backup", "pg"), { recursive: true });
+  mkdirSync(join(dir, "backup", "staging", "pg"), { recursive: true });
+  mkdirSync(join(dir, "backup", "staging", "sqlite"), { recursive: true });
   mkdirSync(join(dir, "data"), { recursive: true });
   writeFileSync(
     join(dir, "state.json"),
@@ -33,6 +35,14 @@ beforeEach(() => {
   );
   writeFileSync(join(dir, "backup", "config", "app.yaml"), "a: 1\n");
   writeFileSync(join(dir, "backup", "pg", "app.dump"), "x".repeat(64));
+  writeFileSync(
+    join(dir, "backup", "staging", "pg", "other.dump"),
+    "y".repeat(32),
+  );
+  writeFileSync(
+    join(dir, "backup", "staging", "sqlite", "app.db"),
+    "z".repeat(16),
+  );
   writeFileSync(join(dir, "dag.yaml"), 'schedule: "30 3 * * *"\n');
   writeFileSync(join(dir, "known_hosts"), "");
 
@@ -74,17 +84,18 @@ describe("route loads never 500", () => {
   it("tile returns the cheap status plus the contents summary", async () => {
     const data = await tileLoad(headers);
     expect(data.status.state.snapshots).toBe(12);
-    expect(data.contents.value.groups.pg).toHaveLength(1);
-    expect(data.contents.value.groups.config).toHaveLength(1);
+    expect(data.contents.value.groups.pg).toHaveLength(2); // pg/ + staging/pg/
+    expect(data.contents.value.groups.sqlite).toHaveLength(1);
     // The tile names the recovery horizon; with restic unreachable in this
     // fixture it degrades instead of throwing.
     expect(data.recovery.degraded).toBe(true);
   });
 
-  it("contents groups the tree and reports an unreadable staging dir quietly", async () => {
+  it("contents counts staged dumps, not just the top level", async () => {
     const data = await contentsLoad(headers);
-    expect(data.contents.value.files.length).toBeGreaterThanOrEqual(2);
-    expect(data.contents.value.groups.pg).toHaveLength(1);
+    expect(data.contents.value.files.length).toBeGreaterThanOrEqual(4);
+    expect(data.contents.value.groups.pg).toHaveLength(2); // pg/ + staging/pg/
+    expect(data.contents.value.groups.sqlite).toHaveLength(1);
   });
 
   it("repo degrades when restic cannot run", async () => {
