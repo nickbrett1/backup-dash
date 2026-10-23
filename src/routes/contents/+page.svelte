@@ -1,0 +1,99 @@
+<script>
+  import { formatBytes } from "$lib/status.js";
+
+  let { data } = $props();
+  const status = $derived(data.status);
+  const contents = $derived(data.contents);
+
+  const groups = [
+    { key: "pg", label: "Postgres dumps" },
+    { key: "sqlite", label: "SQLite dumps" },
+    { key: "config", label: "Config / staging" },
+    { key: "other", label: "Other" },
+  ];
+</script>
+
+<svelte:head><title>backup-dash — contents</title></svelte:head>
+
+<h1>What is backed up</h1>
+<p class="sub">
+  Names and sizes from <code class="mono"
+    >{contents.value?.root ?? "/backup"}</code
+  >. Containers are a count from the state file: the name list lives in
+  <code class="mono">staging/</code> at <code class="mono">root:root 0700</code> and
+  is not readable from this container.
+</p>
+
+<div class="grid">
+  <div class="card">
+    <h2>Containers</h2>
+    <div class="value">
+      {Number.isFinite(status?.state?.containers)
+        ? status.state.containers
+        : "—"}
+    </div>
+    <div class="foot">
+      {Number.isFinite(status?.state?.containers)
+        ? "count reported by the pipeline"
+        : "not reported by the pipeline yet"}
+    </div>
+  </div>
+  <div class="card">
+    <h2>Postgres dumps</h2>
+    <div class="value">{contents.value?.groups.pg.length ?? 0}</div>
+    <div class="foot">
+      {Number.isFinite(status?.state?.pg_dumps)
+        ? `${status.state.pg_dumps} in state`
+        : "—"}
+    </div>
+  </div>
+  <div class="card">
+    <h2>SQLite dumps</h2>
+    <div class="value">{contents.value?.groups.sqlite.length ?? 0}</div>
+    <div class="foot">
+      {Number.isFinite(status?.state?.sqlite_dumps)
+        ? `${status.state.sqlite_dumps} in state`
+        : "—"}
+    </div>
+  </div>
+  <div class="card" class:degraded={contents.degraded}>
+    <h2>On disk</h2>
+    <div class="value">{formatBytes(contents.value?.totalBytes) ?? "—"}</div>
+    <div class="foot">
+      {#if contents.degraded}
+        <span class="degraded-tag">degraded</span> · {contents.error}
+      {:else}
+        {contents.value?.files.length ?? 0} files · as of {contents.asOf ?? "—"}
+      {/if}
+    </div>
+  </div>
+</div>
+
+{#each groups as group (group.key)}
+  <div class="card" style="margin-bottom:14px">
+    <h2>{group.label}</h2>
+    {#if (contents.value?.groups[group.key] ?? []).length === 0}
+      <p class="empty">Nothing here.</p>
+    {:else}
+      <table>
+        <thead>
+          <tr
+            ><th>Path</th><th class="num">Size</th><th class="num">Modified</th
+            ></tr
+          >
+        </thead>
+        <tbody>
+          {#each contents.value.groups[group.key] as file (file.path)}
+            <tr>
+              <td class="mono">{file.path}</td>
+              <td class="num">{formatBytes(file.bytes)}</td>
+              <td class="num muted"
+                >{file.mtime.slice(0, 16).replace("T", " ")}</td
+              >
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    {/if}
+  </div>
+{/each}

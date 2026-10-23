@@ -14,6 +14,10 @@ build
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+# Test output
+coverage
+reports
+
 # OS
 .DS_Store
 Thumbs.db

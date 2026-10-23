@@ -1,6 +1,75 @@
 # backup-dash
 
-A backup-dash project generated with genproj
+A read-only dashboard over the nightly restic backup on ryzen: what ran, how big
+the repo is, what is in it, and the NAS snapshot history. SvelteKit with
+`adapter-node`, one process, server-rendered so the Homepage tile arrives as
+finished HTML.
+
+Design and work order:
+`projects/backup-dash/backup-dash-design.md` and
+`…-implementation-order.md` in the notes vault.
+
+## The invariant
+
+The dashboard must be **structurally incapable of disturbing the 03:30 backup**:
+
+1. `--no-lock` on **every** restic invocation — the dashboard is invisible to
+   restic's lock protocol, so it can never delay or block the run.
+2. A closed verb allowlist: `snapshots`, `stats`, `version`, `cat`. Nothing
+   mutating is reachable, because `src/lib/restic.js` takes its verb from an
+   enum and `tests/restic-argv.test.js` fails if a mutating verb appears.
+3. No write path anywhere: no non-GET handler on any route
+   (`tests/no-write-path.test.js` asserts this, and every route answers `405`
+   to POST/PUT/PATCH/DELETE).
+4. One restic process at a time, 20 s timeout, and nothing in the backup
+   pipeline reads this service.
+
+If a feature needs one of those relaxed, that is a design change, not a tweak.
+
+## Routes
+
+| Route         | Reads                                      | Notes                                                     |
+| ------------- | ------------------------------------------ | --------------------------------------------------------- |
+| `/`           | state file, DAG, suspend flag, own history | never touches restic or SSH                               |
+| `/tile`       | same                                       | Homepage iframe: one status line, one meter, no chrome    |
+| `/contents`   | state + `/backup` tree                     | containers by count only — `staging/` is `root:root 0700` |
+| `/snapshots`  | NAS over SSH                               | sizes for the newest 12 only                              |
+| `/repo`       | restic `snapshots` + `stats`               | cross-checks `repo_bytes`                                 |
+| `/health`     | —                                          | the container HEALTHCHECK target                          |
+| `/api/status` | as `/`                                     | debugging only                                            |
+
+Each source has its own 60 s cache, single-flight, stale-while-error. **No page
+500s because a source is down**; the panel says `degraded` with its `as_of`.
+
+## Local development
+
+```bash
+npm install
+STATE_FILE=/tmp/fixtures/last_success.json npm run dev
+```
+
+`/repo` and `/snapshots` will render `degraded` without credentials — that is
+the intended behaviour, not a failure.
+
+```bash
+npm test          # vitest + coverage
+npm run build     # adapter-node → build/index.js
+```
+
+## Deployment
+
+See `deploy/README.md` (host paths, compose) and `deploy/nas/README.md` (**the
+NAS `command=` wrapper must be installed before the key exists** — passwordless
+sudo is live on that box, so an unconstrained key is root).
+
+Pre-flight on the host before `docker compose up -d`:
+
+```bash
+./scripts/deploy-check.sh
+```
+
+It fails rather than letting the container start credential-less, which is what
+happens if `/srv/.um790-backup/secrets` does not exist.
 
 ## Capabilities
 

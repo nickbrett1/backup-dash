@@ -62,8 +62,6 @@ prerequisites.
 
 For non-Synology hosts: `docker compose up -d`.
 
-
-
 ## 3. Auto-updates with Watchtower (poll model)
 
 Watchtower on the NAS polls the registry and recreates the container when the
@@ -146,3 +144,54 @@ generated Dockerfile, compose file and Homepage widget stay consistent:
 
 Regenerate with `overwrite: true` to apply these to an existing repo — existing
 app code is preserved; only generated infra files are updated.
+
+---
+
+## Service-specific prerequisites (added by the implementation)
+
+Do these **before** `docker compose up -d`. `scripts/deploy-check.sh` verifies
+all of them and refuses to pass while any is missing.
+
+1. **Create the secrets directory.** Compose silently creates
+   `/srv/.um790-backup/secrets` as an empty root-owned directory if it is
+   absent, and the container then starts with no credentials.
+
+   ```sh
+   install -d -m 700 -o root -g root /srv/.um790-backup/secrets
+   printf 'RESTIC_PASSWORD=%s\n' "$( ... )" > /srv/.um790-backup/secrets/dashboard.env
+   chmod 400 /srv/.um790-backup/secrets/dashboard.env
+   ```
+
+   `dashboard.env` holds exactly one variable. Do **not** point the dashboard at
+   the pipeline's `um790-backup.env`: that file carries `NTFY_URL` and anything
+   else the job needs, and the dashboard has no business holding them.
+
+2. **Keys.** `id_restic_ed25519` and `id_nas_ed25519` in the same directory, mode 0400. **The NAS key comes last** — install the `command=` wrapper first, per
+   `deploy/nas/README.md`. Passwordless sudo is live on the NAS, so an
+   unconstrained key is root.
+
+3. **Data directory.** `install -d -m 755 /var/lib/backup-dash`. It holds
+   `history.jsonl` and is the only writable mount.
+
+4. **Homepage group.** The label is `homepage.group=Activity` in
+   `docker-compose.yml` (not the generated `Services`). If you use the file
+   snippet instead of the Docker provider, use `deploy/homepage-services.yaml`.
+
+5. **The suspend mount is the silent one.** `/srv/reader/docker/dagu/data/suspend`
+   is `drwxr-x--- root:root`, so the container runs as root on purpose. If it
+   ever runs unprivileged, the dashboard reports "not suspended" forever — the
+   UI flags `unreadable` instead and the pre-flight notices, but do not rely on
+   that.
+
+### Acceptance gates after `compose up -d`
+
+```sh
+docker exec backup-dash sh -c 'mount | grep -c " ro,"'          # >= 4
+docker exec backup-dash sh -c 'ls -l /secrets'                  # keys visible, read-only
+docker exec backup-dash node -e "fetch('http://127.0.0.1:3000/health').then(r=>r.json()).then(console.log)"
+curl -s http://ryzen:3010/api/status | head -c 400              # verdict is ok/stale/suspended
+```
+
+Then, from a LAN browser: `http://ryzen:3010/` renders, and the Homepage
+**Activity** group shows the card. If the card is missing, the label was not
+picked up — Homepage caches labels until the container is recreated.
