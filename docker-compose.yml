@@ -71,6 +71,8 @@ services:
       - "homepage.description=restic backup, last success and repo size"
       - "homepage.href=http://ryzen:3010/"
       - "homepage.widget.type=customapi"
-      - "homepage.widget.url=http://ryzen:3010/health"
-      - "homepage.widget.mappings[0].field=status"
+      # /api/status, not /health: the card should say ok/stale/unknown about the
+      # backup, not "ok" about the process being alive.
+      - "homepage.widget.url=http://ryzen:3010/api/status"
+      - "homepage.widget.mappings[0].field=verdict"
       - "homepage.widget.mappings[0].label=Status"
