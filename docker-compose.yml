@@ -87,4 +87,4 @@ services:
       # taller box leaves dead space under the text.
       - "homepage.widget.type=iframe"
       - "homepage.widget.src=http://ryzen:3010/tile"
-      - "homepage.widget.classes=h-28 md:h-32"
+      - "homepage.widget.classes=h-24 md:h-28"

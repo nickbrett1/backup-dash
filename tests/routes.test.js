@@ -81,13 +81,11 @@ describe("route loads never 500", () => {
     expect(data.loadError).toBeNull();
   });
 
-  it("tile returns the cheap status plus the contents summary", async () => {
+  it("tile returns the cheap status plus the recovery horizon", async () => {
     const data = await tileLoad(headers);
     expect(data.status.state.snapshots).toBe(12);
-    expect(data.contents.value.groups.pg).toHaveLength(2); // pg/ + staging/pg/
-    expect(data.contents.value.groups.sqlite).toHaveLength(1);
-    // The tile names the recovery horizon; with restic unreachable in this
-    // fixture it degrades instead of throwing.
+    // With restic unreachable in this fixture the horizon degrades instead of
+    // throwing; the tile then says "recovery window unknown".
     expect(data.recovery.degraded).toBe(true);
   });
 

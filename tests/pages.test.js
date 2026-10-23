@@ -208,7 +208,7 @@ describe("tile", () => {
 
   it("names the last successful run in absolute and relative time", () => {
     const { container } = render(Tile, {
-      data: { status: tileStatus, contents, recovery, timeZone: "UTC" },
+      data: { status: tileStatus, recovery, timeZone: "UTC" },
     });
     // absolute, beside the verdict; relative, on the line below.
     expect(screen.getByText("Oct 23, 11:14")).toBeInTheDocument();
@@ -222,7 +222,7 @@ describe("tile", () => {
 
   it("reports how far back a restore can go, not the snapshot count", () => {
     const { container } = render(Tile, {
-      data: { status: tileStatus, contents, recovery, timeZone: "UTC" },
+      data: { status: tileStatus, recovery, timeZone: "UTC" },
     });
     expect(
       screen.getByText(/recover to Jul 25, 2026 \(90d\)/),
@@ -248,34 +248,9 @@ describe("tile", () => {
     expect(screen.getByText(/23 GB in repo/)).toBeInTheDocument();
   });
 
-  it("states an empty staging area instead of rendering a blank line", () => {
-    const { unmount } = render(Tile, {
-      data: { status: tileStatus, contents, recovery, timeZone: "UTC" },
-    });
-    expect(screen.getByText(/staged:/)).toBeInTheDocument();
-    expect(screen.getByText(/1 pg/)).toBeInTheDocument();
-    expect(screen.getByText(/1 sqlite/)).toBeInTheDocument();
-    unmount();
-
-    const empty = {
-      ...contents,
-      value: {
-        ...contents.value,
-        groups: { pg: [], sqlite: [], config: [{}], other: [] },
-      },
-    };
-    const second = render(Tile, {
-      data: { status: tileStatus, contents: empty, recovery, timeZone: "UTC" },
-    });
-    expect(
-      second.getByText(/none — pipeline dumps land here/),
-    ).toBeInTheDocument();
-    expect(second.container.querySelectorAll(".meta").length).toBe(2);
-  });
-
   it("renders a plain unknown tile with no status", () => {
     const { container } = render(Tile, {
-      data: { status: null, contents: null, recovery: null },
+      data: { status: null, recovery: null },
     });
     expect(screen.getByText("State unknown")).toBeInTheDocument();
     expect(container.querySelector(".dot").classList).toContain("unknown");

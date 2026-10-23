@@ -4,7 +4,6 @@
 
   let { data } = $props();
   const status = $derived(data.status);
-  const contents = $derived(data.contents);
 
   const TEXT = {
     ok: "Backed up",
@@ -37,19 +36,6 @@
       ? Math.max(0, Math.floor((now - then) / 86_400_000))
       : null;
     return { label: formatDateInZone(new Date(then), data.timeZone), days };
-  });
-
-  // The dumps the pipeline stages under $BACKUP_DIR. Only pg/sqlite are
-  // counted here: the rest of that tree is restic's own config (exclude.txt,
-  // cache, ssh keys), which would read as content when it is not.
-  const dumps = $derived.by(() => {
-    const groups = contents?.value?.groups;
-    if (!groups) return null;
-    const parts = [
-      { n: groups.pg?.length ?? 0, label: "pg" },
-      { n: groups.sqlite?.length ?? 0, label: "sqlite" },
-    ].filter((g) => g.n > 0);
-    return parts.length > 0 ? parts : null;
   });
 </script>
 
@@ -173,20 +159,5 @@
         {/if}
       {/if}
     </div>
-    {#if status.verdict !== "unknown"}
-      <div class="meta">
-        <span>staged:</span>
-        {#if dumps}
-          {#each dumps as dump, i (dump.label)}
-            {#if i > 0}<span class="sep">·</span>{/if}
-            <span>{dump.n} {dump.label}</span>
-          {/each}
-        {:else if contents}
-          <span class="none">none — pipeline dumps land here</span>
-        {:else}
-          <span class="none">unknown — backup dir unreadable</span>
-        {/if}
-      </div>
-    {/if}
   {/if}
 </div>
