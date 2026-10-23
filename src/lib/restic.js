@@ -155,7 +155,11 @@ export async function repoStats() {
   // raw-data = bytes actually stored, which is what `repo_bytes` means. The
   // default mode reports restore-size, a different (larger) number.
   return JSON.parse(
-    (await runRestic("STATS", ["--json", "--mode", "raw-data"])) || "{}",
+    // A cold stats walks every pack file: ~20 s on ryzen, i.e. exactly the
+    // default subprocess timeout. Longer leash for this verb only.
+    (await runRestic("STATS", ["--json", "--mode", "raw-data"], {
+      timeoutMs: 90_000,
+    })) || "{}",
   );
 }
 
