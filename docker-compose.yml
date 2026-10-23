@@ -71,6 +71,10 @@ services:
       - "homepage.description=restic backup, last success and repo size"
       - "homepage.href=http://ryzen:3010/"
       - "homepage.icon=mdi-backup-restore"
+      # Suppress the CPU / memory / network row Homepage shows for every
+      # docker-discovered service. The card should show the backup verdict, not
+      # the dashboard container's own resource use.
+      - "homepage.showStats=false"
       # iframe at /tile, not customapi. A service-level customapi widget is
       # resolved through /api/widgets/customapi?index=N, and that endpoint only
       # reads widgets.yaml — so it answers "Missing Custom API URL" for every
