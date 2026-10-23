@@ -6,7 +6,7 @@
 const DEFAULTS = {
   STATE_FILE: "/backup/state/last_success.json",
   BACKUP_DIR: "/backup",
-   
+
   RESTIC_REPO: "sftp:restic@192.168.1.2:/restic-target/um790",
   RESTIC_SSH_KEY: "/secrets/id_restic_ed25519",
   // eslint-disable-next-line sonarjs/no-hardcoded-ip -- see RESTIC_REPO above
