@@ -1,19 +1,24 @@
 # Homepage services.yaml snippet for backup-dash
 #
 # Goes in the Activity group, not the default Services group
-# (infra/um790/um790-phase-1-build-order-pt2.md). Append under `Activity:` in
-# Homepage's services.yaml. The URL uses the published host port (3010) and the
-# bare LAN name `ryzen`, which the viewing browser resolves.
+# (infra/um790/um790-phase-1-build-order-pt2.md). The URL uses the published
+# host port (3010) and the bare LAN name `ryzen`, which the viewing browser
+# resolves.
+#
+# The widget is an iframe at /tile, not a customapi widget. A service-level
+# customapi widget is resolved through /api/widgets/customapi?index=N, and that
+# endpoint only reads widgets.yaml — so it answers "Missing Custom API URL" for
+# every service-defined widget and the card falls back to the container's
+# CPU/mem row (no icon, no backup data). An iframe renders options.src on the
+# client with no lookup, which is how the other Activity tiles work, and /tile
+# is built for it: one status line and one meter, chrome stripped.
 
 - backup-dash:
-    icon: sh-docker
+    icon: mdi-backup-restore
     href: http://ryzen:3010/
     description: restic backup, last success and repo size
     siteMonitor: http://ryzen:3010/
     widget:
-      type: customapi
-      url: http://ryzen:3010/api/status
-      refreshInterval: 60000
-      mappings:
-        - field: verdict
-          label: Status
+      type: iframe
+      src: http://ryzen:3010/tile
+      classes: h-32 md:h-36
