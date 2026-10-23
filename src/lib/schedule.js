@@ -196,6 +196,21 @@ export function formatInZoneCompact(date, timeZone) {
   return COMPACT(timeZone).format(date);
 }
 
+// Date only, for a horizon ("recover to Jul 25, 2026"): the time of the oldest
+// snapshot is noise on a tile.
+const DATE_ONLY = (timeZone) =>
+  new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+export function formatDateInZone(date, timeZone) {
+  if (!date) return null;
+  return DATE_ONLY(timeZone).format(date);
+}
+
 export function formatAge(seconds) {
   if (seconds === null || seconds === undefined || !Number.isFinite(seconds))
     return null;

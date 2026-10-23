@@ -81,9 +81,10 @@ services:
       # service-defined widget and the card falls back to the container's CPU/mem
       # row. The iframe renders options.src on the client with no lookup, which is
       # how the other Activity tiles work. /tile is built for it: the verdict,
-      # when the last good run happened (absolute + relative) and what the repo
-      # holds, as text only — no meter. The layout drops the chrome for
-      # /tile* paths.
+      # when the last good run happened (absolute + relative), the repo size and
+      # the recovery horizon, as text only — no meter. The layout drops the
+      # chrome for /tile* paths. h-28/h-32 fits exactly those three lines; a
+      # taller box leaves dead space under the text.
       - "homepage.widget.type=iframe"
       - "homepage.widget.src=http://ryzen:3010/tile"
-      - "homepage.widget.classes=h-32 md:h-36"
+      - "homepage.widget.classes=h-28 md:h-32"

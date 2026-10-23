@@ -21,4 +21,4 @@
     widget:
       type: iframe
       src: http://ryzen:3010/tile
-      classes: h-32 md:h-36
+      classes: h-28 md:h-32

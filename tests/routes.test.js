@@ -76,6 +76,9 @@ describe("route loads never 500", () => {
     expect(data.status.state.snapshots).toBe(12);
     expect(data.contents.value.groups.pg).toHaveLength(1);
     expect(data.contents.value.groups.config).toHaveLength(1);
+    // The tile names the recovery horizon; with restic unreachable in this
+    // fixture it degrades instead of throwing.
+    expect(data.recovery.degraded).toBe(true);
   });
 
   it("contents groups the tree and reports an unreadable staging dir quietly", async () => {

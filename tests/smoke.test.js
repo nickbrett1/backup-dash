@@ -62,6 +62,7 @@ describe("app smoke test", () => {
     expect(screen.getByText("Backed up")).toBeInTheDocument();
     expect(screen.getByText(/last 46m ago/)).toBeInTheDocument();
     expect(container.querySelector(".meter")).toBeNull();
+    expect(screen.getByText(/recovery window unknown/)).toBeInTheDocument();
   });
 
   it("health endpoint returns JSON, which Homepage's customapi widget can parse", async () => {

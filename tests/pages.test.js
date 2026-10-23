@@ -171,6 +171,7 @@ describe("repo page", () => {
 
 describe("tile", () => {
   const tileStatus = {
+    as_of: "2026-10-23T12:00:00.000Z",
     verdict: "ok",
     age: "46m",
     age_seconds: 2760,
@@ -182,6 +183,16 @@ describe("tile", () => {
       repo_bytes: 24696070144,
     },
     next_run: { in_seconds: 70200, display: "Oct 24, 3:30 AM" },
+  };
+  const recovery = {
+    degraded: false,
+    asOf: "2026-10-23T12:00:00.000Z",
+    error: null,
+    value: {
+      count: 12,
+      oldest: "2026-07-25T11:14:00Z",
+      newest: "2026-10-23T11:14:00Z",
+    },
   };
   const contents = {
     degraded: false,
@@ -197,7 +208,7 @@ describe("tile", () => {
 
   it("names the last successful run in absolute and relative time", () => {
     const { container } = render(Tile, {
-      data: { status: tileStatus, contents, timeZone: "UTC" },
+      data: { status: tileStatus, contents, recovery, timeZone: "UTC" },
     });
     // absolute, beside the verdict; relative, on the line below.
     expect(screen.getByText("Oct 23, 11:14")).toBeInTheDocument();
@@ -207,40 +218,65 @@ describe("tile", () => {
     expect(container.querySelector("span[style*='width']")).toBeNull();
   });
 
-  it("summarises the backup, and omits the staged line when contents are unavailable", () => {
-    const { unmount } = render(Tile, {
-      data: { status: tileStatus, contents, timeZone: "UTC" },
+  it("reports how far back a restore can go, not the snapshot count", () => {
+    const { container } = render(Tile, {
+      data: { status: tileStatus, contents, recovery, timeZone: "UTC" },
     });
-    expect(screen.getByText(/12 snapshots/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/recover to Jul 25, 2026 \(90d\)/),
+    ).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/12 snapshots/);
+  });
+
+  it("says the recovery window is unknown rather than leaving a gap", () => {
+    render(Tile, {
+      data: {
+        status: tileStatus,
+        contents,
+        recovery: {
+          degraded: true,
+          asOf: null,
+          error: "restic failed (1)",
+          value: undefined,
+        },
+        timeZone: "UTC",
+      },
+    });
+    expect(screen.getByText(/recovery window unknown/)).toBeInTheDocument();
     expect(screen.getByText(/23 GB in repo/)).toBeInTheDocument();
+  });
+
+  it("states an empty staging area instead of rendering a blank line", () => {
+    const { unmount } = render(Tile, {
+      data: { status: tileStatus, contents, recovery, timeZone: "UTC" },
+    });
     expect(screen.getByText(/staged:/)).toBeInTheDocument();
     expect(screen.getByText(/1 pg/)).toBeInTheDocument();
     expect(screen.getByText(/1 sqlite/)).toBeInTheDocument();
     unmount();
 
-    const { container } = render(Tile, {
-      data: { status: tileStatus, contents: null, timeZone: "UTC" },
-    });
-    expect(container.textContent).not.toMatch(/staged:/);
-    expect(container.textContent).toMatch(/12 snapshots/);
-  });
-
-  it("shows the repo facts even with no contents walk", () => {
-    render(Tile, {
-      data: {
-        status: { ...tileStatus, state: { ...tileStatus.state, snapshots: 1 } },
-        contents: null,
-        timeZone: "UTC",
+    const empty = {
+      ...contents,
+      value: {
+        ...contents.value,
+        groups: { pg: [], sqlite: [], config: [{}], other: [] },
       },
+    };
+    const second = render(Tile, {
+      data: { status: tileStatus, contents: empty, recovery, timeZone: "UTC" },
     });
-    expect(screen.getByText(/1 snapshot$/)).toBeInTheDocument();
+    expect(
+      second.getByText(/none — pipeline dumps land here/),
+    ).toBeInTheDocument();
+    expect(second.container.querySelectorAll(".meta").length).toBe(2);
   });
 
   it("renders a plain unknown tile with no status", () => {
     const { container } = render(Tile, {
-      data: { status: null, contents: null },
+      data: { status: null, contents: null, recovery: null },
     });
     expect(screen.getByText("State unknown")).toBeInTheDocument();
     expect(container.textContent).toMatch(/status unavailable/);
+    expect(container.textContent).toMatch(/recovery window unknown/);
   });
 });

@@ -11,6 +11,7 @@ import { listNasSnapshots, snapshotSize } from "./nas.js";
 import { listSnapshots, repoStats, resticVersion } from "./restic.js";
 
 let resticCache;
+let snapshotListCache;
 let nasCache;
 let contentsCache;
 
@@ -31,6 +32,35 @@ export function getRestic() {
     });
   }
   return resticCache.get();
+}
+
+/**
+ * Snapshot times only — one cheap `snapshots --json`, no stats walk.
+ *
+ * The tile needs the recovery horizon (oldest snapshot) on every poll, and
+ * `getRestic()` would drag the 20-second stats scan in with it. Separate cache,
+ * separate process, same TTL rule.
+ */
+export function getSnapshotList() {
+  if (!snapshotListCache) {
+    snapshotListCache = createCache({
+      name: "snapshot-list",
+      ttlMs: config().cacheTtlMs,
+      loader: async () => {
+        const snapshots = await listSnapshots();
+        const times = snapshots
+          .map((snap) => snap.time)
+          .filter(Boolean)
+          .sort();
+        return {
+          count: snapshots.length,
+          oldest: times[0] ?? null,
+          newest: times.at(-1) ?? null,
+        };
+      },
+    });
+  }
+  return snapshotListCache.get();
 }
 
 export function getNasSnapshots() {
@@ -80,6 +110,7 @@ export function getContents() {
 /** Tests only. */
 export function resetSourceCaches() {
   resticCache = undefined;
+  snapshotListCache = undefined;
   nasCache = undefined;
   contentsCache = undefined;
 }
