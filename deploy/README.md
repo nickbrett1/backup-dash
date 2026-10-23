@@ -194,7 +194,10 @@ all of them and refuses to pass while any is missing.
 ### Acceptance gates after `compose up -d`
 
 ```sh
-docker exec backup-dash sh -c 'mount | grep -c " ro,"'          # >= 4
+# Every mount except /data must be read-only. Read /proc/mounts, not `mount`:
+# node:22-slim ships no mount binary, so `mount | grep -c " ro,"` always says 0.
+docker exec backup-dash sh -c 'grep -E " /(backup|secrets|dagu/dags|dagu/suspend|data) " /proc/mounts'
+#   …all four must begin "ro," and /data must begin "rw,"
 docker exec backup-dash sh -c 'ls -l /secrets'                  # keys visible, read-only
 docker exec backup-dash node -e "fetch('http://127.0.0.1:3000/health').then(r=>r.json()).then(console.log)"
 curl -s http://ryzen:3010/api/status | head -c 400              # verdict is ok/stale/suspended
