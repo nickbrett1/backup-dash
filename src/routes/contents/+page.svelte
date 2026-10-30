@@ -16,6 +16,13 @@
     return null;
   });
 
+  // The manifest can disagree with the count the pipeline recorded; say so
+  // rather than silently showing one of the two numbers.
+  const countDiffers = $derived(
+    Number.isFinite(status?.state?.containers) &&
+      named.names.length !== status.state.containers,
+  );
+
   const groups = [
     { key: "pg", label: "Postgres dumps" },
     { key: "sqlite", label: "SQLite dumps" },
@@ -45,9 +52,10 @@
     </div>
     <div class="foot">
       {#if named.names.length}
-        names listed below{#if Number.isFinite(status?.state?.containers) && named.names.length !== status.state.containers}&#32;<span
-            class="degraded-tag">count differs</span
-          >{/if}
+        names listed below
+        {#if countDiffers}
+          <span class="degraded-tag">count differs</span>
+        {/if}
       {:else if Number.isFinite(status?.state?.containers)}
         count reported by the pipeline, no per-container directory on disk
       {:else}

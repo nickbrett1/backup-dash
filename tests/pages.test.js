@@ -14,48 +14,65 @@ const status = {
   },
 };
 
+// Two container names in the manifest, so a recorded count of 2 agrees and
+// anything else is a disagreement the page has to flag.
+const contents = {
+  degraded: false,
+  asOf: "2026-10-23T12:00:00.000Z",
+  error: null,
+  value: {
+    root: "/backup",
+    containers: {
+      dir: "staging/config",
+      source: "containers.txt",
+      names: ["litellm", "miniflux"],
+    },
+    totalBytes: 2048,
+    files: [
+      {
+        path: "pg/app.dump",
+        name: "app.dump",
+        bytes: 2048,
+        mtime: "2026-10-23T11:00:00.000Z",
+      },
+    ],
+    groups: {
+      config: [],
+      pg: [
+        {
+          path: "pg/app.dump",
+          name: "app.dump",
+          bytes: 2048,
+          mtime: "2026-10-23T11:00:00.000Z",
+        },
+      ],
+      sqlite: [],
+      other: [],
+    },
+  },
+};
+
 describe("contents page", () => {
   it("renders groups and never turns an absent count into zero", () => {
-    const contents = {
-      degraded: false,
-      asOf: "2026-10-23T12:00:00.000Z",
-      error: null,
-      value: {
-        root: "/backup",
-        containers: {
-          dir: "staging/config",
-          source: "containers.txt",
-          names: ["litellm", "miniflux"],
-        },
-        totalBytes: 2048,
-        files: [
-          {
-            path: "pg/app.dump",
-            name: "app.dump",
-            bytes: 2048,
-            mtime: "2026-10-23T11:00:00.000Z",
-          },
-        ],
-        groups: {
-          config: [],
-          pg: [
-            {
-              path: "pg/app.dump",
-              name: "app.dump",
-              bytes: 2048,
-              mtime: "2026-10-23T11:00:00.000Z",
-            },
-          ],
-          sqlite: [],
-          other: [],
-        },
-      },
-    };
     render(Contents, { data: { status, contents } });
     expect(screen.getByText("pg/app.dump")).toBeInTheDocument();
     expect(screen.getByText(/names listed below/)).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
     expect(screen.getByText("litellm")).toBeInTheDocument();
+  });
+
+  it("flags a manifest count that disagrees with the recorded count", () => {
+    const { unmount } = render(Contents, {
+      data: { status: { state: { ...status.state, containers: 2 } }, contents },
+    });
+    // 2 names, 2 recorded: nothing to flag.
+    expect(screen.queryByText(/count differs/)).not.toBeInTheDocument();
+    unmount();
+
+    render(Contents, {
+      data: { status: { state: { ...status.state, containers: 5 } }, contents },
+    });
+    expect(screen.getByText(/count differs/)).toBeInTheDocument();
   });
 
   it("says degraded rather than showing a blank panel", () => {
