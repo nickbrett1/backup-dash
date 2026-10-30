@@ -17,6 +17,13 @@ const headers = { setHeaders: () => {} };
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "bd-routes-"));
+  // Relative to now, not a frozen date: the verdict compares the last success
+  // against the cron plus the grace window, so a hard-coded timestamp starts
+  // reading "stale" a day after it is written and the suite rots.
+  const lastSuccess = Math.floor(Date.now() / 1000) - 3600;
+  const lastSuccessIso = new Date(lastSuccess * 1000)
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z");
   mkdirSync(join(dir, "backup", "config"), { recursive: true });
   mkdirSync(join(dir, "backup", "pg"), { recursive: true });
   mkdirSync(join(dir, "backup", "staging", "pg"), { recursive: true });
@@ -25,8 +32,8 @@ beforeEach(() => {
   writeFileSync(
     join(dir, "state.json"),
     JSON.stringify({
-      last_success: "2026-10-23T11:14:00Z",
-      last_success_epoch: 1792754040,
+      last_success: lastSuccessIso,
+      last_success_epoch: lastSuccess,
       run_id: "01JRUN",
       snapshots: 12,
       repo_bytes: 1024,
