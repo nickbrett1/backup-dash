@@ -66,6 +66,13 @@ services:
       HISTORY_PATH: ${HISTORY_PATH:-/data/history.jsonl}
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
+      # Scope decides *which* watchtower owns this container. The unscoped
+      # `watchtower` on ryzen runs on a daily 03:00 schedule, so an update waits
+      # up to a day; `watchtower-nick` (WATCHTOWER_SCOPE=nick) polls every 60s
+      # but skips anything without this label. Without it a push to main lands
+      # tomorrow, not now — the confusing half of the stale-dashboard bug on
+      # 2026-10-30, the other half being a compose file pinned to a commit SHA.
+      - "com.centurylinklabs.watchtower.scope=nick"
       - "homepage.group=Activity"
       - "homepage.name=Backup"
       - "homepage.description=restic backup, last success and repo size"

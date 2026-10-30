@@ -69,6 +69,12 @@ image digest changes — no inbound ports from CI are required.
 
 - This project opts in via the `com.centurylinklabs.watchtower.enable=true` label
   (included when `watchtower` is enabled).
+- **Scope matters as much as enable.** ryzen runs two Watchtowers: the unscoped
+  one on a daily `0 0 3 * * *` schedule, and `watchtower-nick`
+  (`WATCHTOWER_SCOPE=nick`) polling every 60 s. The latter only considers
+  containers carrying `com.centurylinklabs.watchtower.scope=nick`, so this
+  project sets it — without the label a push to `main` waits until 03:00,
+  which reads exactly like "the deploy did not happen".
 - **Public packages**: no credentials needed on the NAS.
 - **Private packages**: `docker login ghcr.io` on the NAS host once
   (Watchtower uses the Docker daemon's credentials).
@@ -88,6 +94,13 @@ pin the compose file to a known-good build while you fix the repo:
 
 Watchtower watches the tag referenced by the compose file, so a pinned SHA tag
 will not be overwritten until you move the image back to `latest`.
+
+**Move it back when the fix lands.** A pin is a temporary rollback, but nothing
+warns you: the container keeps reporting healthy on an old image while CI
+publishes new ones that never arrive. On 2026-10-30 this hid a week of deploys.
+Switch back to `ghcr.io/nickbrett1/backup-dash:latest` and
+`docker compose pull && docker compose up -d` as the last step of every
+rollback.
 
 ## 5. Homepage dashboard
 
