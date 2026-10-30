@@ -76,6 +76,54 @@ describe("app smoke test", () => {
     expect(screen.queryByText(/containers walked/)).not.toBeInTheDocument();
   });
 
+  it("charts the duration trend over past runs", () => {
+    const runs = {
+      ...status,
+      history: {
+        entries: 3,
+        // three seconds apart, so the polyline has a distinct y for each run
+        trend: [
+          { run_id: "a", epoch: 1, repo_bytes: 1, duration_sec: 600 },
+          { run_id: "b", epoch: 2, repo_bytes: 2, duration_sec: 900 },
+          { run_id: "c", epoch: 3, repo_bytes: 3, duration_sec: 1200 },
+        ],
+        growth: null,
+      },
+    };
+    const { container } = render(Page, {
+      data: { status: runs, loadError: null },
+    });
+    expect(screen.getByText("Duration trend")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: /backup duration per run/ }),
+    ).toBeInTheDocument();
+    // median of 600/900/1200 is 900s; the fastest is 10m, the slowest 20m.
+    expect(screen.getByText(/3 runs · median 15m/)).toBeInTheDocument();
+    expect(screen.getByText(/fastest 10m · slowest 20m/)).toBeInTheDocument();
+    // One polyline per chart (size and duration), plus the median reference
+    // line drawn on the duration chart's scale.
+    expect(container.querySelectorAll("polyline")).toHaveLength(2);
+    expect(container.querySelectorAll("line")).toHaveLength(1);
+  });
+
+  it("waits for a second run rather than drawing a one-point trend", () => {
+    const single = {
+      ...status,
+      history: {
+        entries: 1,
+        trend: [{ run_id: "a", epoch: 1, repo_bytes: 1, duration_sec: 817 }],
+        growth: null,
+      },
+    };
+    render(Page, { data: { status: single, loadError: null } });
+    expect(
+      screen.getByText(/A duration trend needs two recorded runs; 1 so far/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: /backup duration per run/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("gives the container count its own contents card", () => {
     const walked = {
       ...status,

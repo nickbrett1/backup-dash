@@ -28,25 +28,117 @@
     );
     return earlier.length ? earlier.at(-1).duration_sec : null;
   });
-  const points = $derived.by(() => {
-    const values = trend.filter((p) => Number.isFinite(p.repo_bytes));
-    if (values.length < 2) return [];
-    const w = 640;
-    const h = 140;
-    const bytes = values.map((p) => p.repo_bytes);
-    const min = Math.min(...bytes);
-    const max = Math.max(...bytes);
+  // Chart geometry is shared by both trend cards: same viewBox, same padding,
+  // so the two charts line up when they sit side by side.
+  const CHART = { w: 640, h: 140, pad: 6 };
+
+  /**
+   * Turn a list of run points into polyline coordinates plus the inverse
+   * mapping, so a reference line (the median) can be drawn on the same scale.
+   * Returns null below two points: one point is not a trend.
+   */
+  function seriesFor(runs, valueOf) {
+    const values = runs.map(valueOf);
+    if (values.length < 2) return null;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
     const span = max - min || 1;
-    return values.map((p, i) => ({
-      x: (i / (values.length - 1)) * w,
-      y: h - ((p.repo_bytes - min) / span) * (h - 12) - 6,
-      p,
+    const yOf = (value) =>
+      CHART.h - ((value - min) / span) * (CHART.h - CHART.pad * 2) - CHART.pad;
+    const points = values.map((value, i) => ({
+      x: (i / (values.length - 1)) * CHART.w,
+      y: yOf(value),
     }));
-  });
-  const polyline = $derived(
-    points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" "),
+    return {
+      min,
+      max,
+      yOf,
+      polyline: points
+        .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+        .join(" "),
+    };
+  }
+
+  function median(values) {
+    if (!values.length) return null;
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2
+      ? sorted[mid]
+      : (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+
+  /** "42m", "1h 07m", "8s" — a backup duration never needs sub-second detail. */
+  function fmtDuration(sec) {
+    if (!Number.isFinite(sec)) return "—";
+    const total = Math.round(sec);
+    const hours = Math.floor(total / 3600);
+    let minutes = Math.round((total % 3600) / 60);
+    if (minutes === 60) {
+      minutes = 0;
+      return fmtDuration((hours + 1) * 3600);
+    }
+    if (hours && minutes)
+      return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+    if (hours) return `${hours}h`;
+    if (!minutes) return `${total}s`;
+    return `${minutes}m`;
+  }
+
+  const sizeRuns = $derived(trend.filter((p) => Number.isFinite(p.repo_bytes)));
+  const sizeSeries = $derived(seriesFor(sizeRuns, (p) => p.repo_bytes));
+
+  const durationRuns = $derived(
+    trend.filter((p) => Number.isFinite(p.duration_sec)),
+  );
+  const durationSeries = $derived(
+    seriesFor(durationRuns, (p) => p.duration_sec),
+  );
+  const medianDuration = $derived(
+    median(durationRuns.map((p) => p.duration_sec)),
   );
 </script>
+
+{#snippet trendChart(series, { label, color, fillId, reference = null })}
+  <svg
+    viewBox="0 0 640 140"
+    width="100%"
+    height="150"
+    role="img"
+    aria-label={label}
+  >
+    <title>{label}</title>
+    <defs>
+      <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color={color} stop-opacity="0.35" />
+        <stop offset="100%" stop-color={color} stop-opacity="0" />
+      </linearGradient>
+    </defs>
+    <polygon
+      points={`0,140 ${series.polyline} 640,140`}
+      fill="url(#{fillId})"
+    />
+    <!-- After the fill, so the reference line stays visible over it. -->
+    {#if reference !== null}
+      <line
+        x1="0"
+        y1={series.yOf(reference)}
+        x2="640"
+        y2={series.yOf(reference)}
+        stroke="var(--muted)"
+        stroke-width="1"
+        stroke-dasharray="4 4"
+        opacity="0.8"
+      />
+    {/if}
+    <polyline
+      points={series.polyline}
+      fill="none"
+      stroke={color}
+      stroke-width="2"
+    />
+  </svg>
+{/snippet}
 
 <svelte:head><title>backup-dash — overview</title></svelte:head>
 
@@ -112,13 +204,13 @@
       <h2>Duration</h2>
       <div class="value">
         {Number.isFinite(status.state.duration_sec)
-          ? `${Math.round(status.state.duration_sec / 60)}m`
+          ? fmtDuration(status.state.duration_sec)
           : "—"}
       </div>
       <div class="foot">
         <span>the whole run, preflight → status</span
         >{#if prevDuration !== null}<span>
-            · previous {Math.round(prevDuration / 60)}m</span
+            · previous {fmtDuration(prevDuration)}</span
           >{/if}
       </div>
     </div>
@@ -149,6 +241,7 @@
 
   <div class="card" style="margin-bottom:14px">
     <h2>Next run</h2>
+
     <div class="value" style="font-size:20px">
       {status.next_run?.display ?? "unknown"}
     </div>
@@ -160,44 +253,57 @@
     </div>
   </div>
 
-  <div class="card" class:degraded={status.degraded.state}>
-    <h2>Size trend</h2>
-    {#if status.degraded.state}
-      <div class="degraded-tag">degraded · {status.degraded.state_error}</div>
-    {/if}
-    {#if points.length >= 2}
-      <svg
-        viewBox="0 0 640 140"
-        width="100%"
-        height="150"
-        role="img"
-        aria-label="repo size per run"
-      >
-        <title>Repo size per run</title>
-        <defs>
-          <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#3fb950" stop-opacity="0.35" />
-            <stop offset="100%" stop-color="#3fb950" stop-opacity="0" />
-          </linearGradient>
-        </defs>
-        <polygon points={`0,140 ${polyline} 640,140`} fill="url(#fill)" />
-        <polyline
-          points={polyline}
-          fill="none"
-          stroke="#3fb950"
-          stroke-width="2"
-        />
-      </svg>
-      <div class="foot">
-        {trend.length} recorded runs · oldest {formatBytes(
-          trend[0]?.repo_bytes,
-        )}
-      </div>
-    {:else}
-      <p class="empty">
-        History starts the day this deploys; the trend appears after the second
-        recorded run ({status.history.entries} so far).
-      </p>
-    {/if}
+  <div class="charts">
+    <div class="card" class:degraded={status.degraded.state}>
+      <h2>Size trend</h2>
+      {#if status.degraded.state}
+        <div class="degraded-tag">degraded · {status.degraded.state_error}</div>
+      {/if}
+      {#if sizeSeries}
+        {@render trendChart(sizeSeries, {
+          label: "repo size per run",
+          color: "var(--ok)",
+          fillId: "size-fill",
+        })}
+        <div class="foot">
+          {trend.length} recorded runs · oldest {formatBytes(
+            trend[0]?.repo_bytes,
+          )}
+        </div>
+      {:else}
+        <p class="empty">
+          History starts the day this deploys; the trend appears after the
+          second recorded run ({status.history.entries} so far).
+        </p>
+      {/if}
+    </div>
+
+    <div class="card" class:degraded={status.degraded.state}>
+      <h2>Duration trend</h2>
+      {#if status.degraded.state}
+        <div class="degraded-tag">degraded · {status.degraded.state_error}</div>
+      {/if}
+      {#if durationSeries}
+        {@render trendChart(durationSeries, {
+          label: "backup duration per run",
+          color: "var(--suspended)",
+          fillId: "duration-fill",
+          reference: medianDuration,
+        })}
+        <div class="foot">
+          {durationRuns.length} runs · median {fmtDuration(medianDuration)} · fastest
+          {fmtDuration(durationSeries.min)} · slowest {fmtDuration(
+            durationSeries.max,
+          )}
+        </div>
+        <div class="foot muted">
+          dashed line is the median; a climbing line is the run taking longer
+        </div>
+      {:else}
+        <p class="empty">
+          A duration trend needs two recorded runs; {durationRuns.length} so far.
+        </p>
+      {/if}
+    </div>
   </div>
 {/if}
